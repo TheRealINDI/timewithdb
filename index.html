@@ -1,92 +1,3 @@
-<!DOCTYPE html>
-<html lang="nl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
-
-<style>
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-}
-
-body{
-    background:#050505;
-    color:white;
-    font-family:'Nunito',sans-serif;
-    height:100vh;
-
-    display:flex;
-    justify-content:center;
-    align-items:center;
-}
-
-.wrap{
-    text-align:center;
-}
-
-.time{
-    font-size:7vw;
-    font-weight:700;
-    line-height:1;
-}
-
-.db{
-    font-size:13vw;
-    font-weight:700;
-    line-height:1;
-    margin-top:20px;
-}
-</style>
-</head>
-<body>
-
-<div class="wrap">
-    <div class="time" id="time">00:00:00</div>
-    <div class="db" id="db">0</div>
-</div>
-
-<script>
-function updateTime(){
-    const now = new Date();
-
-    const h = String(now.getHours()).padStart(2,'0');
-    const m = String(now.getMinutes()).padStart(2,'0');
-    const s = String(now.getSeconds()).padStart(2,'0');
-
-    document.getElementById('time').textContent =
-        `${h}:${m}:${s}`;
-}
-
-let analyser;
-let dataArray;
-
-async function initMic(){
-    try{
-        const stream = await navigator.mediaDevices.getUserMedia({
-            audio:true
-        });
-
-        const ctx = new AudioContext();
-        analyser = ctx.createAnalyser();
-
-        const source =
-            ctx.createMediaStreamSource(stream);
-
-        source.connect(analyser);
-
-        analyser.fftSize = 2048;
-        dataArray =
-            new Uint8Array(analyser.fftSize);
-
-    }catch(e){
-        document.getElementById('db').textContent = '--';
-    }
-}
-
 function updateDb(){
 
     if(!analyser) return;
@@ -109,17 +20,16 @@ function updateDb(){
 
     db = Math.max(0, Math.round(db + 100));
 
-    document.getElementById('db').textContent = db;
+    const dbElement = document.getElementById('db');
+    dbElement.textContent = db;
+
+    if (db < 40) {
+        dbElement.style.color = "#22c55e"; // groen
+    } else if (db < 70) {
+        dbElement.style.color = "#f59e0b"; // oranje
+    } else {
+        dbElement.style.color = "#ef4444"; // rood
+    }
 }
 
-initMic();
-
-updateTime();
-setInterval(updateTime, 1000);
-
-updateDb();
-setInterval(updateDb, 1000);
-</script>
-
-</body>
-</html>
+setInterval(updateDb, 250);
