@@ -1,35 +1,136 @@
-function updateDb(){
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    if(!analyser) return;
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700&display=swap" rel="stylesheet">
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    background:#050505;
+    color:white;
+    font-family:'Nunito',sans-serif;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+.container{
+    text-align:center;
+}
+
+#time{
+    font-size:7vw;
+    line-height:1;
+}
+
+#db{
+    font-size:14vw;
+    line-height:1;
+    margin-top:20px;
+    transition:color .2s ease;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div id="time">00:00:00</div>
+    <div id="db">0</div>
+</div>
+
+<script>
+const timeElement = document.getElementById("time");
+const dbElement = document.getElementById("db");
+
+function updateClock() {
+    const now = new Date();
+
+    const h = String(now.getHours()).padStart(2, "0");
+    const m = String(now.getMinutes()).padStart(2, "0");
+    const s = String(now.getSeconds()).padStart(2, "0");
+
+    timeElement.textContent = `${h}:${m}:${s}`;
+}
+
+updateClock();
+setInterval(updateClock, 1000);
+
+let analyser;
+let dataArray;
+
+async function startMic() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true
+        });
+
+        const audioContext = new AudioContext();
+
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+
+        const source =
+            audioContext.createMediaStreamSource(stream);
+
+        source.connect(analyser);
+
+        dataArray =
+            new Uint8Array(analyser.fftSize);
+
+        setInterval(updateDb, 250);
+
+    } catch (err) {
+        dbElement.textContent = "--";
+    }
+}
+
+function updateDb() {
+
+    if (!analyser) return;
 
     analyser.getByteTimeDomainData(dataArray);
 
     let sum = 0;
 
-    for(let i=0;i<dataArray.length;i++){
-        const v = (dataArray[i]-128)/128;
-        sum += v*v;
+    for (let i = 0; i < dataArray.length; i++) {
+        const sample = (dataArray[i] - 128) / 128;
+        sum += sample * sample;
     }
 
-    const rms = Math.sqrt(sum/dataArray.length);
+    const rms = Math.sqrt(sum / dataArray.length);
 
     let db = 20 * Math.log10(rms);
 
-    if(!isFinite(db))
+    if (!isFinite(db)) {
         db = -100;
+    }
 
     db = Math.max(0, Math.round(db + 100));
 
-    const dbElement = document.getElementById('db');
     dbElement.textContent = db;
 
     if (db < 40) {
-        dbElement.style.color = "#22c55e"; // groen
-    } else if (db < 70) {
-        dbElement.style.color = "#f59e0b"; // oranje
+        dbElement.style.color = "#22c55e";
+    } else if (db < 60) {
+        dbElement.style.color = "#eab308";
+    } else if (db < 80) {
+        dbElement.style.color = "#f97316";
     } else {
-        dbElement.style.color = "#ef4444"; // rood
+        dbElement.style.color = "#ef4444";
     }
 }
 
-setInterval(updateDb, 250);
+startMic();
+</script>
+
+</body>
+</html>
