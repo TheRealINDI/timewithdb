@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dB Monitor</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:system-ui,sans-serif;
+}
+
+body{
+    background:#0a0a0a;
+    color:#eaeaea;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+}
+
+.container{
+    text-align:center;
+}
+
+.time{
+    font-size:4rem;
+    font-weight:300;
+    letter-spacing:2px;
+    margin-bottom:30px;
+}
+
+.db{
+    font-size:6rem;
+    font-weight:700;
+}
+
+.label{
+    opacity:.5;
+    margin-top:10px;
+    font-size:.9rem;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div class="time" id="time">00:00:00</div>
+    <div class="db" id="db">0 dB</div>
+    <div class="label">microfoon actief</div>
+</div>
+
+<script>
+function updateClock() {
+    const now = new Date();
+
+    const h = String(now.getHours()).padStart(2,'0');
+    const m = String(now.getMinutes()).padStart(2,'0');
+    const s = String(now.getSeconds()).padStart(2,'0');
+
+    document.getElementById('time').textContent =
+        `${h}:${m}:${s}`;
+}
+
+setInterval(updateClock, 1000);
+updateClock();
+
+async function startMeter() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            audio:true
+        });
+
+        const audioContext = new AudioContext();
+        const analyser = audioContext.createAnalyser();
+        const mic = audioContext.createMediaStreamSource(stream);
+
+        analyser.fftSize = 2048;
+        mic.connect(analyser);
+
+        const data = new Uint8Array(analyser.fftSize);
+
+        function measure() {
+            analyser.getByteTimeDomainData(data);
+
+            let sum = 0;
+
+            for(let i=0;i<data.length;i++){
+                const x = (data[i]-128)/128;
+                sum += x*x;
+            }
+
+            const rms = Math.sqrt(sum/data.length);
+
+            let db = 20 * Math.log10(rms);
+
+            if(!isFinite(db)) db = -100;
+
+            const display = Math.max(0, Math.round(db + 100));
+
+            document.getElementById('db').textContent =
+                `${display} dB`;
+
+            requestAnimationFrame(measure);
+        }
+
+        measure();
+
+    } catch(err) {
+        document.getElementById('db').textContent =
+            'MIC ERROR';
+    }
+}
+
+startMeter();
+</script>
+
+</body>
+</html>
