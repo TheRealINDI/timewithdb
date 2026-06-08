@@ -3,58 +3,54 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>dB Monitor</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
 *{
     margin:0;
     padding:0;
     box-sizing:border-box;
-    font-family:system-ui,sans-serif;
 }
 
 body{
-    background:#0a0a0a;
-    color:#eaeaea;
+    background:#050505;
+    color:white;
+    font-family:'Nunito',sans-serif;
+    height:100vh;
+
     display:flex;
     justify-content:center;
     align-items:center;
-    min-height:100vh;
 }
 
-.container{
+.wrap{
     text-align:center;
 }
 
 .time{
-    font-size:4rem;
-    font-weight:300;
-    letter-spacing:2px;
-    margin-bottom:30px;
+    font-size:7vw;
+    font-weight:700;
+    line-height:1;
 }
 
 .db{
-    font-size:6rem;
+    font-size:13vw;
     font-weight:700;
-}
-
-.label{
-    opacity:.5;
-    margin-top:10px;
-    font-size:.9rem;
+    line-height:1;
+    margin-top:20px;
 }
 </style>
 </head>
 <body>
 
-<div class="container">
+<div class="wrap">
     <div class="time" id="time">00:00:00</div>
-    <div class="db" id="db">0 dB</div>
-    <div class="label">microfoon actief</div>
+    <div class="db" id="db">0</div>
 </div>
 
 <script>
-function updateClock() {
+function updateTime(){
     const now = new Date();
 
     const h = String(now.getHours()).padStart(2,'0');
@@ -65,57 +61,64 @@ function updateClock() {
         `${h}:${m}:${s}`;
 }
 
-setInterval(updateClock, 1000);
-updateClock();
+let analyser;
+let dataArray;
 
-async function startMeter() {
-    try {
+async function initMic(){
+    try{
         const stream = await navigator.mediaDevices.getUserMedia({
             audio:true
         });
 
-        const audioContext = new AudioContext();
-        const analyser = audioContext.createAnalyser();
-        const mic = audioContext.createMediaStreamSource(stream);
+        const ctx = new AudioContext();
+        analyser = ctx.createAnalyser();
+
+        const source =
+            ctx.createMediaStreamSource(stream);
+
+        source.connect(analyser);
 
         analyser.fftSize = 2048;
-        mic.connect(analyser);
+        dataArray =
+            new Uint8Array(analyser.fftSize);
 
-        const data = new Uint8Array(analyser.fftSize);
-
-        function measure() {
-            analyser.getByteTimeDomainData(data);
-
-            let sum = 0;
-
-            for(let i=0;i<data.length;i++){
-                const x = (data[i]-128)/128;
-                sum += x*x;
-            }
-
-            const rms = Math.sqrt(sum/data.length);
-
-            let db = 20 * Math.log10(rms);
-
-            if(!isFinite(db)) db = -100;
-
-            const display = Math.max(0, Math.round(db + 100));
-
-            document.getElementById('db').textContent =
-                `${display} dB`;
-
-            requestAnimationFrame(measure);
-        }
-
-        measure();
-
-    } catch(err) {
-        document.getElementById('db').textContent =
-            'MIC ERROR';
+    }catch(e){
+        document.getElementById('db').textContent = '--';
     }
 }
 
-startMeter();
+function updateDb(){
+
+    if(!analyser) return;
+
+    analyser.getByteTimeDomainData(dataArray);
+
+    let sum = 0;
+
+    for(let i=0;i<dataArray.length;i++){
+        const v = (dataArray[i]-128)/128;
+        sum += v*v;
+    }
+
+    const rms = Math.sqrt(sum/dataArray.length);
+
+    let db = 20 * Math.log10(rms);
+
+    if(!isFinite(db))
+        db = -100;
+
+    db = Math.max(0, Math.round(db + 100));
+
+    document.getElementById('db').textContent = db;
+}
+
+initMic();
+
+updateTime();
+setInterval(updateTime, 1000);
+
+updateDb();
+setInterval(updateDb, 1000);
 </script>
 
 </body>
